@@ -4,6 +4,9 @@
 #import "SettingsViewController.h"
 #import "../ui_shared/BootablesProcesses.h"
 #import "../ui_shared/BootablesDbClient.h"
+#import "../ui_shared/ArcadeUtils.h"
+#import "../PS2VM_Preferences.h"
+#import "AppConfig.h"
 #import "PathUtils.h"
 #import "BackgroundLayer.h"
 #import "CoverViewCell.h"
@@ -27,6 +30,31 @@ static bool IsJitAvailable()
 		}
 	}
 	return false;
+}
+
+//Registers the arcade machines (from the bundled arcadedefs) whose files are present
+//in the "arcaderoms" directory: either <id>.zip or an <id> subdirectory.
+//Other machines are left out so the collection only shows games that can run.
+static void RegisterAvailableArcadeMachines()
+{
+	ArcadeUtils::RegisterArcadeMachines();
+	//The preference is registered by CPS2VM, which doesn't exist yet at this point.
+	auto arcadeRomsPath = CAppConfig::GetInstance().GetPreferencePath(PREF_PS2_ARCADEROMS_DIRECTORY);
+	if(arcadeRomsPath.empty())
+	{
+		arcadeRomsPath = CAppConfig::GetInstance().GetBasePath() / "arcaderoms";
+	}
+	Framework::PathUtils::EnsurePathExists(arcadeRomsPath);
+	auto arcadeBootables = BootablesDb::CClient::GetInstance().GetBootables(BootablesDb::CClient::SORT_METHOD_ARCADE);
+	for(const auto& bootable : arcadeBootables)
+	{
+		auto machineId = bootable.path.stem();
+		std::error_code errorCode;
+		bool hasZip = fs::exists(arcadeRomsPath / (machineId.string() + ".zip"), errorCode);
+		bool hasDir = fs::is_directory(arcadeRomsPath / machineId, errorCode);
+		if(hasZip || hasDir) continue;
+		BootablesDb::CClient::GetInstance().UnregisterBootable(bootable.path);
+	}
 }
 
 @interface CoverViewController ()
@@ -85,6 +113,11 @@ static NSString* const reuseIdentifier = @"coverCell";
 		alert.message = @"Purging inexisting files...";
 	  });
 	  PurgeInexistingFiles();
+
+	  dispatch_async(dispatch_get_main_queue(), ^{
+		alert.message = @"Registering arcade machines...";
+	  });
+	  RegisterAvailableArcadeMachines();
 
 	  dispatch_async(dispatch_get_main_queue(), ^{
 		alert.message = @"Fetching game titles...";

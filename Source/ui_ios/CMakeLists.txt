@@ -149,13 +149,17 @@ set(OSX_RES
 	${CMAKE_CURRENT_SOURCE_DIR}/Resources/analogstick.png
 )
 
+FILE(GLOB ARCADE_DEFS ${CMAKE_CURRENT_SOURCE_DIR}/../../arcadedefs/*.arcadedef)
+#iOS bundles are flat: the resource path is the bundle itself, so the files land in Play.app/arcadedefs.
+SET_SOURCE_FILES_PROPERTIES(${ARCADE_DEFS} PROPERTIES MACOSX_PACKAGE_LOCATION "arcadedefs")
+
 if(USE_GSH_VULKAN)
 	list(APPEND OSX_SOURCES GSH_VulkaniOS.cpp)
 	list(APPEND OSX_HEADERS GSH_VulkaniOS.h)
 endif()
 
 # Add our Executable
-add_executable(Play MACOSX_BUNDLE ${OSX_SOURCES} ${OSX_HEADERS} ${OSX_RES})
+add_executable(Play MACOSX_BUNDLE ${OSX_SOURCES} ${OSX_HEADERS} ${OSX_RES} ${ARCADE_DEFS})
 target_compile_options(Play PRIVATE $<$<NOT:$<COMPILE_LANGUAGE:Swift>>:-x objective-c++ -fobjc-arc>)
 
 # Probably a better way to set the framework link libraries.

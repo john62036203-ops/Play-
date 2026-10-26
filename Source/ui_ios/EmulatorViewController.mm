@@ -12,6 +12,7 @@
 #include "GSH_VulkaniOS.h"
 #endif
 #include "../ui_shared/BootableUtils.h"
+#include "../ui_shared/ArcadeUtils.h"
 #include "PH_Generic.h"
 #include "sound/SH_OpenAL/SH_OpenAL.h"
 #include "../ui_shared/StatsManager.h"
@@ -127,7 +128,27 @@ CPS2VM::NewFrameEvent::Connection g_newFrameConnection;
 	g_virtualMachine->Reset();
 
 	auto bootablePath = fs::path([self.bootablePath fileSystemRepresentation]);
-	if(BootableUtils::IsBootableExecutablePath(bootablePath))
+	if(BootableUtils::IsBootableArcadeDefPath(bootablePath))
+	{
+		//Arcade bootables are registered by their arcadedef file name only.
+		//BootArcadeMachine resets the VM with the extended RAM size and resumes it.
+		try
+		{
+			ArcadeUtils::BootArcadeMachine(g_virtualMachine, bootablePath.filename());
+		}
+		catch(const std::exception& exception)
+		{
+			NSString* message = [NSString stringWithUTF8String:exception.what()];
+			UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Failed to start arcade machine" message:message preferredStyle:UIAlertControllerStyleAlert];
+			[alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+			                                        handler:^(UIAlertAction* action) {
+				                                        [self onExitButtonClick];
+			                                        }]];
+			[self presentViewController:alert animated:YES completion:nil];
+		}
+		return;
+	}
+	else if(BootableUtils::IsBootableExecutablePath(bootablePath))
 	{
 		g_virtualMachine->m_ee->m_os->BootFromFile(bootablePath);
 	}

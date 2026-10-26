@@ -4,6 +4,8 @@ on: [push, pull_request]
 jobs:
   build_ios:
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
     - name: Install dpkg
       run: |
@@ -55,6 +57,13 @@ jobs:
           installer_ios/Play.ipa
           installer_ios/Play.deb
           installer_ios/Packages.bz2
+    - name: Publish IPA as a release (fork builds)
+      if: ${{ github.event_name == 'push' && github.repository != 'jpd002/Play-' }}
+      run: |
+        TAG="ios-arcade-${GITHUB_RUN_NUMBER}"
+        gh release create "$TAG" installer_ios/Play.ipa --prerelease --title "Play! iOS arcade build ${GITHUB_RUN_NUMBER}" --notes "Unsigned IPA from ${GITHUB_SHA}. Sideload it (SideStore/AltStore/etc.)."
+      env:
+        GH_TOKEN: ${{ github.token }}
     - name: Upload a Build Artifact libretro
       uses: actions/upload-artifact@v7
       with:
